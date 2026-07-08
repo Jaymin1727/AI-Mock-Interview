@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyD9uyDl_f8az9OkN5aPHlqo9nqon94wtJg",
+  apiKey: "apiKey: process.env.REACT_APP_FIREBASE_API_KEY,",
   authDomain: "ai-interview-5d5c5.firebaseapp.com",
   projectId: "ai-interview-5d5c5",
 };

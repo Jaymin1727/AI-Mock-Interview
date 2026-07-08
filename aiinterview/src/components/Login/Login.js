@@ -80,6 +80,39 @@ const Login = ({ onLogin }) => {
             <ArrowRight className="arrow-icon" size={18} />
           </button>
           
+          <button 
+            className="mock-signin-btn"
+            onClick={() => {
+              // Creating a mock user and fake JWT token matching our backend decoding logic
+              const mockUser = {
+                uid: 'GvxV9VvAIcW3bD1u3CkioAyXn5Y2',
+                displayName: 'Jaymin',
+                email: 'jaymin@example.com'
+              };
+              // Mock base64 encoded payload
+              const payload = btoa(JSON.stringify({
+                user_id: mockUser.uid,
+                name: mockUser.displayName,
+                email: mockUser.email
+              }));
+              const mockToken = `header.${payload}.signature`;
+              onLogin(mockUser, mockToken);
+            }}
+            style={{
+              marginTop: '1rem',
+              width: '100%',
+              padding: '12px',
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-color)',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: 500
+            }}
+          >
+            Bypass Login for Testing
+          </button>
+          
           {error && <div className="error-message">{error}</div>}
         </div>
 

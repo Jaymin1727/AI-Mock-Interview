@@ -34,7 +34,7 @@ const Sidebar = ({ activePage, setActivePage }) => {
         <div className="pro-card">
           <h4>Upgrade to Pro</h4>
           <p>Get unlimited interview sessions and advanced AI feedback.</p>
-          <button className="upgrade-btn">Go Pro</button>
+          <button className="upgrade-btn" onClick={() => alert('Pro upgrade coming soon!')}>Go Pro</button>
         </div>
       </div>
     </aside>

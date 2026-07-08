@@ -1,15 +1,54 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { Play, Clock, Award, Star } from 'lucide-react';
+import { getDashboardStats, getRecentInterviews, getInterviewResult } from '../services/api';
 import './Dashboard.css';
 
-const Dashboard = ({ user }) => {
+const Dashboard = ({ user, onStart, onViewResult }) => {
+  const [statsData, setStatsData] = useState({
+    totalInterviews: 0,
+    avgScore: '0%',
+    timeSpent: '0m',
+    successRate: '0%'
+  });
+  const [recentInterviews, setRecentInterviews] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const handleViewDetails = async (interview) => {
+    try {
+      const response = await getInterviewResult(interview.id);
+      if (onViewResult) onViewResult(response.data.data.interview);
+    } catch (error) {
+      console.error("Failed to fetch detailed result:", error);
+    }
+  };
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [statsRes, recentRes] = await Promise.all([
+          getDashboardStats(),
+          getRecentInterviews()
+        ]);
+        
+        setStatsData(statsRes.data.data);
+        setRecentInterviews(recentRes.data.data.interviews);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   const stats = [
-    { label: 'Total Interviews', value: '12', icon: Play, color: '#8b5cf6' },
-    { label: 'Avg. Score', value: '84%', icon: Award, color: '#3b82f6' },
-    { label: 'Time Spent', value: '4.5h', icon: Clock, color: '#d946ef' },
-    { label: 'Success Rate', value: '92%', icon: Star, color: '#10b981' },
+    { label: 'Total Interviews', value: statsData.totalInterviews, icon: Play, color: '#8b5cf6' },
+    { label: 'Avg. Score', value: statsData.avgScore, icon: Award, color: '#3b82f6' },
+    { label: 'Time Spent', value: statsData.timeSpent, icon: Clock, color: '#d946ef' },
+    { label: 'Success Rate', value: statsData.successRate, icon: Star, color: '#10b981' },
   ];
 
   return (
@@ -19,7 +58,7 @@ const Dashboard = ({ user }) => {
           <h1>Welcome back, {user?.displayName?.split(' ')[0] || 'User'}! 👋</h1>
           <p>You're doing great. Ready for your next mock interview?</p>
         </div>
-        <Button className="cta-btn" size="lg">
+        <Button className="cta-btn" size="lg" onClick={onStart}>
           <Play size={20} fill="currentColor" />
           Start New Interview
         </Button>
@@ -35,7 +74,7 @@ const Dashboard = ({ user }) => {
               </div>
               <div className="stat-info">
                 <span className="stat-label">{stat.label}</span>
-                <span className="stat-value">{stat.value}</span>
+                <span className="stat-value">{loading ? '-' : stat.value}</span>
               </div>
             </Card>
           );
@@ -46,23 +85,33 @@ const Dashboard = ({ user }) => {
         <div className="main-section">
           <h2>Recent Interviews</h2>
           <div className="recent-list">
-            {[1, 2, 3].map((_, i) => (
-              <Card key={i} className="interview-item">
-                <div className="interview-info">
-                  <div className="role-icon">💼</div>
-                  <div>
-                    <h4>Senior Frontend Developer</h4>
-                    <span>Software Engineering • 2 days ago</span>
+            {loading ? (
+              <p>Loading recent interviews...</p>
+            ) : recentInterviews.length === 0 ? (
+              <p>No interviews yet. Start one today!</p>
+            ) : (
+              recentInterviews.map((interview) => (
+                <Card key={interview.id} className="interview-item">
+                  <div className="interview-info">
+                    <div className="role-icon">💼</div>
+                    <div>
+                      <h4>{interview.role}</h4>
+                      <span>{new Date(interview.createdAt).toLocaleDateString()}</span>
+                    </div>
                   </div>
-                </div>
-                <div className="interview-score">
-                  <div className="score-circle">
-                    <span>8{i}</span>
+                  <div className="interview-score">
+                    {interview.status === 'completed' ? (
+                      <div className="score-circle">
+                        <span>{interview.overallScore}</span>
+                      </div>
+                    ) : (
+                      <span className="status-badge" style={{marginRight: '1rem', background: '#3b82f622', color: '#3b82f6', padding: '4px 8px', borderRadius: '12px', fontSize: '12px'}}>{interview.status}</span>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => handleViewDetails(interview)}>View Details</Button>
                   </div>
-                  <Button variant="ghost" size="sm">View Details</Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))
+            )}
           </div>
         </div>
 
@@ -77,7 +126,7 @@ const Dashboard = ({ user }) => {
           <Card className="upgrade-teaser">
             <h4>Unlock Advanced Analysis</h4>
             <p>Get detailed feedback on your body language and tone.</p>
-            <Button variant="outline" size="sm">Learn More</Button>
+            <Button variant="outline" size="sm" onClick={() => alert('Advanced Analysis coming soon!')}>Learn More</Button>
           </Card>
         </div>
       </section>

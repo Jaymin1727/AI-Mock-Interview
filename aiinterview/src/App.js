@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { auth } from './firebase';
 import { onAuthStateChanged } from 'firebase/auth';
+import { setAuthToken, verifyAuth } from './services/api';
 import Login from './components/Login/Login';
 import Dashboard from './pages/Dashboard';
 import Interview from './pages/Interview';
@@ -17,17 +18,38 @@ function App() {
   const [interviewData, setInterviewData] = useState(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (currentUser) {
+        try {
+          const token = await currentUser.getIdToken();
+          setAuthToken(token);
+          // Optional: Verify with backend
+          await verifyAuth();
+          setUser(currentUser);
+        } catch (error) {
+          console.error("Auth verification failed", error);
+          setUser(null);
+        }
+      } else {
+        setUser(null);
+        setAuthToken(null);
+      }
       setLoading(false);
     });
 
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = (user, token) => {
-    setUser(user);
-    console.log("Logged in with token:", token);
+  const handleLogin = async (user, token) => {
+    try {
+      setAuthToken(token);
+      await verifyAuth();
+      setUser(user);
+      console.log("Logged in securely");
+    } catch (error) {
+      console.error("Backend auth failed", error);
+      auth.signOut();
+    }
   };
 
   const handleSignOut = async () => {
@@ -51,6 +73,7 @@ function App() {
 
   const viewHistoryDetail = (item) => {
     console.log("Viewing details for:", item);
+    setInterviewData(item);
     setActivePage('result');
   };
 
@@ -73,7 +96,7 @@ function App() {
       setActivePage={setActivePage}
       onSignOut={handleSignOut}
     >
-      {activePage === 'dashboard' && <Dashboard user={user} onStart={startInterview} />}
+      {activePage === 'dashboard' && <Dashboard user={user} onStart={startInterview} onViewResult={viewHistoryDetail} />}
       {activePage === 'interview' && <Interview onFinish={finishInterview} />}
       {activePage === 'result' && <Result results={interviewData} onRestart={startInterview} />}
       {activePage === 'history' && <History onViewResult={viewHistoryDetail} />}

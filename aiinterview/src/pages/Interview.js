@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import { ChevronLeft, ChevronRight, Mic, Timer, CircleAlert } from 'lucide-react';
+import { startInterview, submitAnswer, finishInterview } from '../services/api';
 import './Interview.css';
 
 const Interview = ({ onFinish }) => {
@@ -9,7 +10,27 @@ const Interview = ({ onFinish }) => {
   const [answers, setAnswers] = useState({});
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes total
   const [isListening, setIsListening] = useState(false);
+  const [questions, setQuestions] = useState([]);
+  const [interviewId, setInterviewId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const recognitionRef = useRef(null);
+
+  // Initialize Interview
+  useEffect(() => {
+    const initInterview = async () => {
+      try {
+        const response = await startInterview("Senior Frontend Developer"); // Could be dynamic
+        setInterviewId(response.data.data.interview.id);
+        setQuestions(response.data.data.questions);
+      } catch (error) {
+        console.error("Failed to start interview:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initInterview();
+  }, []);
 
   // Initialize Speech Recognition once
   useEffect(() => {
@@ -70,29 +91,6 @@ const Interview = ({ onFinish }) => {
     }
   };
 
-  const questions = [
-    {
-      id: 1,
-      text: "Can you tell me about a time you handled a difficult situation with a colleague?",
-      hint: "Remember to use the STAR method."
-    },
-    {
-      id: 2,
-      text: "What are your greatest professional strengths?",
-      hint: "Be specific and back it up with examples."
-    },
-    {
-      id: 3,
-      text: "Why should we hire you for this role?",
-      hint: "Focus on how your skills align with the project needs."
-    },
-    {
-      id: 4,
-      text: "Where do you see yourself in five years?",
-      hint: "Discuss your growth and how it fits with the company's trajectory."
-    }
-  ];
-
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
@@ -113,26 +111,53 @@ const Interview = ({ onFinish }) => {
     });
   };
 
-  const nextQuestion = () => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    } else {
-      submitInterview();
+  const saveCurrentAnswer = async () => {
+    const answerText = answers[currentQuestion];
+    if (answerText && interviewId && questions[currentQuestion]) {
+      try {
+        await submitAnswer(interviewId, questions[currentQuestion].id, answerText);
+      } catch (error) {
+        console.error("Failed to save answer:", error);
+      }
     }
   };
 
-  const prevQuestion = () => {
+  const nextQuestion = async () => {
+    await saveCurrentAnswer();
+    
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(currentQuestion + 1);
+    } else {
+      submitInterviewSession();
+    }
+  };
+
+  const prevQuestion = async () => {
+    await saveCurrentAnswer();
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
     }
   };
 
-  const submitInterview = () => {
-    // Mock API call delay
-    setTimeout(() => {
-      onFinish(answers);
-    }, 1500);
+  const submitInterviewSession = async () => {
+    setSubmitting(true);
+    try {
+      const duration = 600 - timeLeft;
+      const response = await finishInterview(interviewId, duration);
+      onFinish(response.data.data); // Pass full result to App
+    } catch (error) {
+      console.error("Failed to finish interview:", error);
+      setSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return <div className="interview-page flex-center"><h3>Generating tailored questions via AI...</h3></div>;
+  }
+
+  if (questions.length === 0) {
+    return <div className="interview-page flex-center"><h3>Error loading questions.</h3></div>;
+  }
 
   const progress = ((currentQuestion + 1) / questions.length) * 100;
 
@@ -170,23 +195,27 @@ const Interview = ({ onFinish }) => {
           <div className="question-number">
             Question {currentQuestion + 1} of {questions.length}
           </div>
-          <h2 className="question-text">{questions[currentQuestion].text}</h2>
+          <h2 className="question-text">{questions[currentQuestion].questionText}</h2>
           
-          <div className="hint-box">
-            <CircleAlert size={16} />
-            <p>{questions[currentQuestion].hint}</p>
-          </div>
+          {questions[currentQuestion].hint && (
+            <div className="hint-box">
+              <CircleAlert size={16} />
+              <p>{questions[currentQuestion].hint}</p>
+            </div>
+          )}
 
           <div className="answer-area">
             <textarea
               placeholder="Type your answer here..."
               value={answers[currentQuestion] || ''}
               onChange={handleAnswerChange}
+              disabled={submitting}
             />
             <button 
               className={`voice-btn ${isListening ? 'active' : ''}`} 
               title={isListening ? "Stop Listening" : "Start Voice Input"}
               onClick={toggleListening}
+              disabled={submitting}
             >
               <Mic size={24} />
               {isListening && <span className="listening-pulse"></span>}
@@ -197,7 +226,7 @@ const Interview = ({ onFinish }) => {
             <Button 
               variant="outline" 
               onClick={prevQuestion}
-              disabled={currentQuestion === 0}
+              disabled={currentQuestion === 0 || submitting}
             >
               <ChevronLeft size={20} />
               Previous
@@ -212,9 +241,9 @@ const Interview = ({ onFinish }) => {
               ))}
             </div>
 
-            <Button onClick={nextQuestion}>
-              {currentQuestion === questions.length - 1 ? 'Finish Interview' : 'Next Question'}
-              <ChevronRight size={20} />
+            <Button onClick={nextQuestion} disabled={submitting}>
+              {submitting ? 'Evaluating...' : (currentQuestion === questions.length - 1 ? 'Finish Interview' : 'Next Question')}
+              {!submitting && <ChevronRight size={20} />}
             </Button>
           </div>
         </Card>
@@ -222,7 +251,7 @@ const Interview = ({ onFinish }) => {
         {/* Footer Actions */}
         <div className="interview-footer">
           <Button variant="ghost" className="quit-btn">Quit Session</Button>
-          <p className="footer-note">Your answers are automatically saved as you type.</p>
+          <p className="footer-note">Your answers are automatically saved when you navigate.</p>
         </div>
       </div>
     </div>

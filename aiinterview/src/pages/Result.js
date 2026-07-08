@@ -9,21 +9,25 @@ import { Target, MessageSquare, ArrowRight, Download, CircleAlert } from 'lucide
 import './Result.css';
 
 const Result = ({ results, onRestart }) => {
-  // Mock data for charts
+  if (!results || !results.result) {
+    return <div className="result-page flex-center"><h3>Loading results...</h3></div>;
+  }
+
+  const { result, questions } = results;
+
+  // Formatting data for charts
   const performanceData = [
-    { subject: 'Communication', A: 85, fullMark: 100 },
-    { subject: 'Technical', A: 70, fullMark: 100 },
-    { subject: 'Confidence', A: 90, fullMark: 100 },
-    { subject: 'Problem Solving', A: 75, fullMark: 100 },
-    { subject: 'Clarity', A: 80, fullMark: 100 },
+    { subject: 'Communication', A: result.communicationScore, fullMark: 100 },
+    { subject: 'Technical', A: result.technicalScore, fullMark: 100 },
+    { subject: 'Confidence', A: result.confidenceScore, fullMark: 100 },
+    { subject: 'Problem Solving', A: result.problemSolvingScore, fullMark: 100 },
+    { subject: 'Clarity', A: result.clarityScore, fullMark: 100 },
   ];
 
-  const scoreData = [
-    { name: 'Q1', score: 85 },
-    { name: 'Q2', score: 72 },
-    { name: 'Q3', score: 94 },
-    { name: 'Q4', score: 88 },
-  ];
+  const scoreData = questions.map((q, i) => ({
+    name: `Q${i+1}`,
+    score: q.score || 0
+  }));
 
   return (
     <div className="result-page">
@@ -32,7 +36,7 @@ const Result = ({ results, onRestart }) => {
           <div className="trophy-icon">🏆</div>
           <div>
             <h1>Interview Analysis Completed</h1>
-            <p>Great job! You've successfully completed the mock interview for <strong>Senior Frontend Developer</strong>.</p>
+            <p>Great job! You've successfully completed the mock interview.</p>
           </div>
         </div>
         <div className="header-actions">
@@ -46,16 +50,16 @@ const Result = ({ results, onRestart }) => {
           <div className="score-ring">
             <svg viewBox="0 0 100 100">
               <circle className="ring-bg" cx="50" cy="50" r="45" />
-              <circle className="ring-fill" cx="50" cy="50" r="45" style={{ strokeDashoffset: 282.7 * (1 - 0.84) }} />
+              <circle className="ring-fill" cx="50" cy="50" r="45" style={{ strokeDashoffset: 282.7 * (1 - result.overallScore / 100) }} />
             </svg>
             <div className="score-text">
-              <span className="big-score">84</span>
+              <span className="big-score">{result.overallScore}</span>
               <span className="max-score">/100</span>
             </div>
           </div>
           <div className="score-label">
             <h3>Overall Score</h3>
-            <p>Exceptional performance</p>
+            <p>{result.overallScore >= 80 ? 'Exceptional performance' : result.overallScore >= 60 ? 'Good performance' : 'Needs improvement'}</p>
           </div>
         </Card>
 
@@ -89,9 +93,7 @@ const Result = ({ results, onRestart }) => {
                 <h3>Key Strengths</h3>
               </div>
               <ul>
-                <li>Excellent use of the STAR method in behavioral questions.</li>
-                <li>Strong articulation of technical architectural decisions.</li>
-                <li>High level of professional confidence and clarity.</li>
+                {result.strengths.map((s, i) => <li key={i}>{s}</li>)}
               </ul>
             </Card>
 
@@ -101,9 +103,7 @@ const Result = ({ results, onRestart }) => {
                 <h3>Areas for Improvement</h3>
               </div>
               <ul>
-                <li>Could provide more specific metrics for past accomplishments.</li>
-                <li>Ensure technical explanations don't get too bogged down in trivia.</li>
-                <li>Work on simplifying complex concepts for non-technical stakeholders.</li>
+                {result.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
               </ul>
             </Card>
 
@@ -112,9 +112,7 @@ const Result = ({ results, onRestart }) => {
                 <MessageSquare color="var(--primary)" />
                 <h3>Expert Suggestions</h3>
               </div>
-              <p>
-                "Practice elaborating on your 'Result' phase of the STAR method with quantifiable impact (e.g., 'reduced load time by 40%'). This adds weight to your experience."
-              </p>
+              <p>"{result.suggestions}"</p>
             </Card>
           </div>
         </div>

@@ -10,7 +10,7 @@ const Navbar = ({ user, onSignOut }) => {
       </div>
       
       <div className="navbar-actions">
-        <button className="icon-btn">
+        <button className="icon-btn" onClick={() => alert('Notifications coming soon!')}>
           <Bell size={20} />
         </button>
         
