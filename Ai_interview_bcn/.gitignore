@@ -1,0 +1,35 @@
+# =============================================
+# Spring Boot Backend .gitignore
+# =============================================
+
+# Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Environment Variables — NEVER commit these
+.env
+.env.local
+.env.production
+
+# Firebase service account — contains private keys
+src/main/resources/firebase-service-account.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log

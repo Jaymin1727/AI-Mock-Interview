@@ -15,6 +15,8 @@ const Dashboard = ({ user, onStart, onViewResult }) => {
   const [recentInterviews, setRecentInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [selectedTopic, setSelectedTopic] = useState('React');
+
   const handleViewDetails = async (interview) => {
     try {
       const response = await getInterviewResult(interview.id);
@@ -51,6 +53,8 @@ const Dashboard = ({ user, onStart, onViewResult }) => {
     { label: 'Success Rate', value: statsData.successRate, icon: Star, color: '#10b981' },
   ];
 
+  const topics = ['React', 'Spring Boot', 'DBMS', 'Computer Networks', 'OOPs', 'System Design', 'General HR Discussion'];
+
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
@@ -58,10 +62,20 @@ const Dashboard = ({ user, onStart, onViewResult }) => {
           <h1>Welcome back, {user?.displayName?.split(' ')[0] || 'User'}! 👋</h1>
           <p>You're doing great. Ready for your next mock interview?</p>
         </div>
-        <Button className="cta-btn" size="lg" onClick={onStart}>
-          <Play size={20} fill="currentColor" />
-          Start New Interview
-        </Button>
+        
+        <div className="start-action-container" style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '12px' }}>
+          <select 
+            value={selectedTopic} 
+            onChange={(e) => setSelectedTopic(e.target.value)}
+            style={{ padding: '10px', borderRadius: '8px', background: '#1e1e2d', color: 'white', border: '1px solid #333' }}
+          >
+            {topics.map(t => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <Button className="cta-btn" size="lg" onClick={() => onStart(selectedTopic)}>
+            <Play size={20} fill="currentColor" />
+            Start New Interview
+          </Button>
+        </div>
       </header>
 
       <section className="stats-grid">

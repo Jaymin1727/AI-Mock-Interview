@@ -62,8 +62,9 @@ function App() {
     }
   };
 
-  const startInterview = () => {
+  const startInterview = (topic) => {
     setActivePage('interview');
+    setInterviewData({ topic }); // Store topic temporarily
   };
 
   const finishInterview = (answers) => {
@@ -97,8 +98,8 @@ function App() {
       onSignOut={handleSignOut}
     >
       {activePage === 'dashboard' && <Dashboard user={user} onStart={startInterview} onViewResult={viewHistoryDetail} />}
-      {activePage === 'interview' && <Interview onFinish={finishInterview} />}
-      {activePage === 'result' && <Result results={interviewData} onRestart={startInterview} />}
+      {activePage === 'interview' && <Interview topic={interviewData?.topic} onFinish={finishInterview} />}
+      {activePage === 'result' && <Result results={interviewData} onRestart={() => setActivePage('dashboard')} />}
       {activePage === 'history' && <History onViewResult={viewHistoryDetail} />}
       
       {activePage === 'settings' && (

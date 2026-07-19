@@ -1,0 +1,1 @@
+{ "contents": [{"parts": [{"text": "You are a technical interviewer. Generate exactly ONE Medium difficulty interview question for the topic React. Return the response STRICTLY as a JSON object with this exact structure: {\"questionText\": \"The question here\", \"difficulty\": \"Medium\"}. Do not include markdown blocks or any other text."}]}]}

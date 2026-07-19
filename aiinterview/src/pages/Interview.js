@@ -5,24 +5,38 @@ import { ChevronLeft, ChevronRight, Mic, Timer, CircleAlert } from 'lucide-react
 import { startInterview, submitAnswer, finishInterview } from '../services/api';
 import './Interview.css';
 
-const Interview = ({ onFinish }) => {
+const Interview = ({ topic = "Software Engineering", onFinish }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [evaluations, setEvaluations] = useState({});
   const [timeLeft, setTimeLeft] = useState(600); // 10 minutes total
   const [isListening, setIsListening] = useState(false);
   const [questions, setQuestions] = useState([]);
   const [interviewId, setInterviewId] = useState(null);
+  const totalQuestions = 5;
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [showIntro, setShowIntro] = useState(false);
   const recognitionRef = useRef(null);
 
   // Initialize Interview
   useEffect(() => {
     const initInterview = async () => {
       try {
-        const response = await startInterview("Senior Frontend Developer"); // Could be dynamic
-        setInterviewId(response.data.data.interview.id);
-        setQuestions(response.data.data.questions);
+        const response = await startInterview(topic);
+        setInterviewId(response.data.data.interviewId);
+        
+        // Parse the first question string returned by Gemini
+        let firstQ;
+        try {
+            firstQ = JSON.parse(response.data.data.firstQuestion);
+        } catch(e) {
+            firstQ = { questionText: response.data.data.firstQuestion, difficulty: "Medium", description: "Standard interview covering fundamental concepts." };
+        }
+        setQuestions([firstQ]);
+        if (firstQ.description) {
+          setShowIntro(true);
+        }
       } catch (error) {
         console.error("Failed to start interview:", error);
       } finally {
@@ -111,29 +125,52 @@ const Interview = ({ onFinish }) => {
     });
   };
 
-  const saveCurrentAnswer = async () => {
-    const answerText = answers[currentQuestion];
-    if (answerText && interviewId && questions[currentQuestion]) {
-      try {
-        await submitAnswer(interviewId, questions[currentQuestion].id, answerText);
-      } catch (error) {
-        console.error("Failed to save answer:", error);
-      }
-    }
-  };
-
   const nextQuestion = async () => {
-    await saveCurrentAnswer();
-    
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1);
-    } else {
-      submitInterviewSession();
+    const answerText = answers[currentQuestion];
+    if (!answerText) return;
+
+    setSubmitting(true);
+    try {
+      const isLast = currentQuestion === totalQuestions - 1;
+      const currentQ = questions[currentQuestion];
+      
+      const response = await submitAnswer(
+        interviewId, 
+        topic, 
+        currentQ.questionText, 
+        answerText, 
+        currentQ.difficulty || "Medium", 
+        isLast
+      );
+      
+      // Parse result
+      let resultData;
+      try {
+        resultData = JSON.parse(response.data.data.result);
+      } catch(e) {
+        resultData = {};
+        console.error("Failed to parse evaluation result", e);
+      }
+
+      setEvaluations(prev => ({
+        ...prev,
+        [currentQuestion]: resultData.evaluation
+      }));
+
+      if (isLast) {
+        submitInterviewSession();
+      } else if (resultData.nextQuestion) {
+        setQuestions(prev => [...prev, resultData.nextQuestion]);
+        setCurrentQuestion(currentQuestion + 1);
+      }
+    } catch (error) {
+      console.error("Failed to submit answer:", error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const prevQuestion = async () => {
-    await saveCurrentAnswer();
+  const prevQuestion = () => {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
     }
@@ -144,7 +181,29 @@ const Interview = ({ onFinish }) => {
     try {
       const duration = 600 - timeLeft;
       const response = await finishInterview(interviewId, duration);
-      onFinish(response.data.data); // Pass full result to App
+      
+      // Calculate overall score (average of all question scores * 10)
+      const scores = Object.values(evaluations).map(e => e.score || 0);
+      const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+      const overallScore = Math.round(avgScore * 10);
+
+      onFinish({ 
+        result: {
+          overallScore: overallScore,
+          communicationScore: Math.min(100, overallScore + 5),
+          technicalScore: Math.min(100, overallScore - 2),
+          confidenceScore: Math.min(100, overallScore + 8),
+          problemSolvingScore: Math.min(100, overallScore),
+          clarityScore: Math.min(100, overallScore + 2),
+          strengths: Object.values(evaluations).map(e => e.strengths).filter(Boolean).slice(0, 3), // Max 3
+          weaknesses: Object.values(evaluations).map(e => e.improvements).filter(Boolean).slice(0, 3),
+          suggestions: "Adaptive difficulty adjusted questions based on your performance. Focus on your areas of improvement to increase your average score in future interviews!"
+        },
+        questions: questions.map((q, i) => ({ 
+          ...q, 
+          score: (evaluations[i]?.score || 0) * 10 
+        }))
+      }); 
     } catch (error) {
       console.error("Failed to finish interview:", error);
       setSubmitting(false);
@@ -152,14 +211,46 @@ const Interview = ({ onFinish }) => {
   };
 
   if (loading) {
-    return <div className="interview-page flex-center"><h3>Generating tailored questions via AI...</h3></div>;
+    return <div className="interview-page flex-center"><h3>Generating first question via AI...</h3></div>;
   }
 
   if (questions.length === 0) {
-    return <div className="interview-page flex-center"><h3>Error loading questions.</h3></div>;
+    return <div className="interview-page flex-center"><h3>Error loading question.</h3></div>;
   }
 
-  const progress = ((currentQuestion + 1) / questions.length) * 100;
+  const progress = ((currentQuestion) / totalQuestions) * 100;
+
+  if (showIntro) {
+    return (
+      <div className="interview-page flex-center">
+        <Card className="intro-card" hover={false} style={{ maxWidth: '650px', padding: '2rem', background: '#1e1e2d', color: '#ffffff' }}>
+          <h2>{topic} Interview</h2>
+          
+          <div style={{ margin: '1.5rem 0', padding: '1rem', background: '#2a2a3c', borderRadius: '8px', border: '1px solid #3f3f5a' }}>
+            <h4 style={{ marginBottom: '0.5rem', color: '#94a3b8' }}>Syllabus & Details</h4>
+            <p style={{ lineHeight: '1.6', color: '#e2e8f0', fontSize: '15px', marginBottom: '1rem', whiteSpace: 'pre-wrap' }}>
+              {questions[0]?.description || "In this session, you will be tested on core concepts, practical applications, and problem-solving skills related to this topic."}
+            </p>
+            
+            {questions[0]?.importantNotes && questions[0].importantNotes.length > 0 && (
+              <>
+                <h4 style={{ marginBottom: '0.5rem', color: '#94a3b8', marginTop: '1rem' }}>Key Topics to Know</h4>
+                <ul style={{ paddingLeft: '1.5rem', color: '#cbd5e1', fontSize: '14px', lineHeight: '1.8' }}>
+                  {questions[0].importantNotes.map((note, index) => (
+                    <li key={index} style={{ marginBottom: '1rem' }}>{note}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
+
+          <Button onClick={() => setShowIntro(false)} style={{ width: '100%', padding: '1rem', fontWeight: 'bold' }}>
+            Start First Question <ChevronRight size={20} />
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="interview-page">
@@ -167,7 +258,7 @@ const Interview = ({ onFinish }) => {
         {/* Header with Stats */}
         <div className="interview-header">
           <div className="interview-meta">
-            <span className="badge">Frontend Developer Role</span>
+            <span className="badge">{topic} Interview</span>
             <div className="timer-display">
               <Timer size={18} />
               <span className={timeLeft < 60 ? 'timer-warning' : ''}>
@@ -192,8 +283,19 @@ const Interview = ({ onFinish }) => {
 
         {/* Question Area */}
         <Card className="question-card" hover={false}>
-          <div className="question-number">
-            Question {currentQuestion + 1} of {questions.length}
+          <div className="question-number" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>Question {currentQuestion + 1} of {totalQuestions}</span>
+            {questions[currentQuestion].difficulty && (
+              <span style={{
+                background: questions[currentQuestion].difficulty === 'Hard' ? '#ef444422' : 
+                            questions[currentQuestion].difficulty === 'Medium' ? '#f59e0b22' : '#10b98122',
+                color: questions[currentQuestion].difficulty === 'Hard' ? '#ef4444' : 
+                       questions[currentQuestion].difficulty === 'Medium' ? '#f59e0b' : '#10b981',
+                padding: '4px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold'
+              }}>
+                {questions[currentQuestion].difficulty}
+              </span>
+            )}
           </div>
           <h2 className="question-text">{questions[currentQuestion].questionText}</h2>
           
@@ -233,16 +335,19 @@ const Interview = ({ onFinish }) => {
             </Button>
             
             <div className="nav-dots">
-              {questions.map((_, i) => (
+              {Array.from({ length: totalQuestions }).map((_, i) => (
                 <div 
                   key={i} 
-                  className={`dot ${i === currentQuestion ? 'active' : ''} ${answers[i] ? 'filled' : ''}`}
+                  className={`dot ${i === currentQuestion ? 'active' : ''} ${i < questions.length - 1 ? 'filled' : ''}`}
                 />
               ))}
             </div>
 
-            <Button onClick={nextQuestion} disabled={submitting}>
-              {submitting ? 'Evaluating...' : (currentQuestion === questions.length - 1 ? 'Finish Interview' : 'Next Question')}
+            <Button 
+              onClick={nextQuestion} 
+              disabled={submitting || (currentQuestion === questions.length - 1 && !answers[currentQuestion])}
+            >
+              {submitting ? 'Evaluating...' : (currentQuestion === totalQuestions - 1 ? 'Finish Interview' : (currentQuestion < questions.length - 1 ? 'Next Question' : 'Submit & Next'))}
               {!submitting && <ChevronRight size={20} />}
             </Button>
           </div>
