@@ -14,10 +14,6 @@ public class SupabaseConfig {
     @Value("${supabase.secret-key}")
     private String supabaseSecretKey;
 
-    /**
-     * WebClient pre-configured for Supabase REST API calls.
-     * Uses the secret service_role key — ONLY for backend use.
-     */
     @Bean(name = "supabaseWebClient")
     public WebClient supabaseWebClient() {
         return WebClient.builder()

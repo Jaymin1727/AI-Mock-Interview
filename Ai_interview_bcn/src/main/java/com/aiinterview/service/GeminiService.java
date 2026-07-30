@@ -9,10 +9,6 @@ import reactor.core.publisher.Mono;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Service for interacting with Google Gemini API.
- * Sends prompts and receives AI-generated interview questions / evaluations.
- */
 @Service
 public class GeminiService {
 
@@ -30,38 +26,22 @@ public class GeminiService {
     public GeminiService(@Qualifier("geminiWebClient") WebClient geminiWebClient) {
         this.geminiWebClient = geminiWebClient;
     }
-
-    /**
-     * Generate the first interview question for a given topic.
-     *
-     * @param topic the selected topic (e.g., "React", "Spring")
-     * @return JSON string containing the question text and difficulty
-     */
-    public String generateFirstQuestion(String topic) {
+    public String generateFirstQuestion(String topic, String initialDifficulty) {
+        String difficultyText = initialDifficulty != null && !initialDifficulty.isEmpty() ? initialDifficulty : "Medium";
         String prompt = String.format(
-            "You are a technical interviewer. Generate exactly ONE Medium difficulty interview question " +
+            "You are a technical interviewer. Generate exactly ONE %s difficulty interview question " +
             "for the topic '%s'. Also generate a brief 1-2 sentence description of the topic, " +
             "AND an array of 3-4 'importantNotes'. Each note MUST BE A DETAILED EXPLANATION (3-4 sentences) diving deep into a specific key concept, formula, or principle that the interview will test. " +
             "Return the response STRICTLY as a JSON object with this exact structure: " +
-            "{\"description\": \"Brief description...\", \"importantNotes\": [\"Detailed explanation of concept 1...\", \"Detailed explanation of concept 2...\"], \"questionText\": \"The question here\", \"difficulty\": \"Medium\"}. " +
+            "{\"description\": \"Brief description...\", \"importantNotes\": [\"Detailed explanation of concept 1...\", \"Detailed explanation of concept 2...\"], \"questionText\": \"The question here\", \"difficulty\": \"%s\"}. " +
             "Do not include markdown blocks or any other text.",
-            topic
+            difficultyText, topic, difficultyText
         );
         return callGemini(prompt);
     }
 
-    /**
-     * Evaluate an answer and generate the next adaptive question.
-     *
-     * @param topic the interview topic
-     * @param question the previous question
-     * @param answer the candidate's answer
-     * @param currentDifficulty the difficulty of the previous question
-     * @param isLastQuestion true if this is the final question (no next question needed)
-     * @return JSON string containing evaluation and next question
-     */
     public String evaluateAndGenerateNext(String topic, String question, String answer, String currentDifficulty, boolean isLastQuestion) {
-        String nextQuestionPrompt = isLastQuestion ? 
+        String nextQuestionPrompt = isLastQuestion ?
             "Since this is the last question, set \"nextQuestion\" to null." :
             "Also generate the NEXT interview question for the topic '" + topic + "'. " +
             "ADAPTIVE LOGIC: If the user's score is 7 or higher, increase the difficulty (e.g. from Easy to Medium, or Medium to Hard). " +
@@ -85,19 +65,15 @@ public class GeminiService {
             "  \"nextQuestion\": {\n" +
             "    \"questionText\": \"...\",\n" +
             "    \"difficulty\": \"Hard\"\n" +
-            "  }\n" + // nextQuestion is null if isLastQuestion is true
+            "  }\n" +
             "}",
             topic, currentDifficulty, question, answer, nextQuestionPrompt
         );
-        
+
         String response = callGemini(prompt);
-        // Clean markdown JSON formatting if Gemini adds it
         return response.replaceAll("```json\n", "").replaceAll("```\n", "").replaceAll("```", "").trim();
     }
 
-    /**
-     * Core method to call the Gemini REST API.
-     */
     @SuppressWarnings("unchecked")
     private String callGemini(String prompt) {
         Map<String, Object> requestBody = Map.of(

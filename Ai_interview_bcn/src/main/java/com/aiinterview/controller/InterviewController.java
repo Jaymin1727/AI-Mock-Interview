@@ -12,20 +12,18 @@ import java.util.Map;
 @RequestMapping("/api/interviews")
 public class InterviewController {
 
+    public static final java.util.List<Map<String, Object>> interviewHistory = new java.util.concurrent.CopyOnWriteArrayList<>();
+
     @Autowired
     private GeminiService geminiService;
-
-    /**
-     * POST /api/interviews/start
-     * Starts an interview session for the given topic and returns the first question.
-     */
     @PostMapping("/start")
     public ResponseEntity<?> startInterview(
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal String uid
     ) {
         String topic = body.getOrDefault("topic", "Software Engineering");
-        String firstQuestionJson = geminiService.generateFirstQuestion(topic);
+        String difficulty = body.getOrDefault("difficulty", "Medium");
+        String firstQuestionJson = geminiService.generateFirstQuestion(topic, difficulty);
 
         return ResponseEntity.ok(Map.of(
             "data", Map.of(
@@ -36,11 +34,6 @@ public class InterviewController {
             )
         ));
     }
-
-    /**
-     * POST /api/interviews/{interviewId}/answer
-     * Submits an answer to an interview question for evaluation and gets the next question.
-     */
     @PostMapping("/{interviewId}/answer")
     public ResponseEntity<?> submitAnswer(
             @PathVariable String interviewId,
@@ -62,22 +55,30 @@ public class InterviewController {
             )
         ));
     }
-
-    /**
-     * POST /api/interviews/{interviewId}/finish
-     * Finalizes the interview session.
-     */
     @PostMapping("/{interviewId}/finish")
     public ResponseEntity<?> finishInterview(
             @PathVariable String interviewId,
             @RequestBody Map<String, Object> body,
             @AuthenticationPrincipal String uid
     ) {
-        long duration = ((Number) body.getOrDefault("duration", 0)).longValue();
+        body.put("interviewId", interviewId);
+        body.put("userId", uid);
+        body.put("createdAt", java.time.Instant.now().toString());
+        body.put("status", "completed");
+        
+        Map<String, Object> result = (Map<String, Object>) body.get("result");
+        if (result != null && result.containsKey("overallScore")) {
+            body.put("overallScore", result.get("overallScore"));
+        } else {
+            body.put("overallScore", 0);
+        }
+        body.put("role", body.getOrDefault("topic", "Software Engineering"));
+
+        interviewHistory.add(body);
+
         return ResponseEntity.ok(Map.of(
             "interviewId", interviewId,
             "userId", uid,
-            "duration", duration,
             "status", "completed",
             "message", "Interview session completed successfully"
         ));

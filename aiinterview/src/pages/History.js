@@ -19,8 +19,8 @@ const History = ({ onViewResult }) => {
     setLoading(true);
     try {
       const response = await getHistory(page, 10);
-      setHistoryData(response.data.data.interviews);
-      setTotalPages(response.data.data.pages);
+      setHistoryData(response.data.data.history || response.data.data.interviews || []);
+      setTotalPages(response.data.data.pages || 1);
     } catch (error) {
       console.error("Failed to fetch history:", error);
     } finally {

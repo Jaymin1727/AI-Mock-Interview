@@ -17,10 +17,6 @@ public class GeminiConfig {
     @Value("${gemini.model}")
     private String geminiModel;
 
-    /**
-     * WebClient pre-configured for Gemini API calls.
-     * Usage: inject this bean in any service that needs Gemini.
-     */
     @Bean(name = "geminiWebClient")
     public WebClient geminiWebClient() {
         return WebClient.builder()

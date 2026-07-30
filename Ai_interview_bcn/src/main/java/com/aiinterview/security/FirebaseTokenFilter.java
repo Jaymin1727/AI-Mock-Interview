@@ -31,15 +31,12 @@ public class FirebaseTokenFilter extends OncePerRequestFilter {
             try {
                 FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
                 String uid = decodedToken.getUid();
-
-                // Set authentication in Spring Security context
                 UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(uid, null, List.of());
                 authentication.setDetails(decodedToken);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {
-                // Invalid token — clear context but let Spring Security handle 401
                 SecurityContextHolder.clearContext();
             }
         }

@@ -7,10 +7,6 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import java.util.Map;
 
-/**
- * Service for interacting with Supabase database via REST API.
- * Uses the secret service_role key for privileged access.
- */
 @Service
 public class SupabaseService {
 
@@ -22,14 +18,6 @@ public class SupabaseService {
     public SupabaseService(@Qualifier("supabaseWebClient") WebClient supabaseWebClient) {
         this.supabaseWebClient = supabaseWebClient;
     }
-
-    /**
-     * Insert a new record into a Supabase table.
-     *
-     * @param table the table name
-     * @param data  the data map to insert
-     * @return inserted record as Map
-     */
     @SuppressWarnings("unchecked")
     public Map<String, Object> insert(String table, Map<String, Object> data) {
         return supabaseWebClient.post()
@@ -40,14 +28,6 @@ public class SupabaseService {
                 .block();
     }
 
-    /**
-     * Select all records from a Supabase table with optional filter.
-     * Example filter: "user_id=eq.abc123"
-     *
-     * @param table  the table name
-     * @param filter the query filter string (or null for all records)
-     * @return array of records
-     */
     @SuppressWarnings("unchecked")
     public Object[] select(String table, String filter) {
         WebClient.RequestHeadersSpec<?> request = supabaseWebClient.get()
@@ -67,13 +47,6 @@ public class SupabaseService {
                 .block();
     }
 
-    /**
-     * Update a record in a Supabase table.
-     *
-     * @param table  the table name
-     * @param filter the filter string (e.g., "id=eq.123")
-     * @param data   the fields to update
-     */
     @SuppressWarnings("unchecked")
     public Map<String, Object> update(String table, String filter, Map<String, Object> data) {
         String[] parts = filter.split("=", 2);

@@ -3,6 +3,7 @@ package com.aiinterview.controller;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,11 +13,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 public class HealthController {
-
-    /**
-     * GET /api/health
-     * Public health check — no authentication required.
-     */
     @GetMapping("/health")
     public ResponseEntity<?> health() {
         return ResponseEntity.ok(Map.of(
@@ -25,35 +21,68 @@ public class HealthController {
             "timestamp", LocalDateTime.now().toString()
         ));
     }
-
-    /**
-     * GET /api/dashboard/stats
-     * Returns dashboard statistics for authenticated user.
-     */
     @GetMapping("/dashboard/stats")
     public ResponseEntity<?> dashboardStats(@AuthenticationPrincipal String uid) {
-        // TODO: Fetch real stats from Supabase
+        long count = InterviewController.interviewHistory.stream().filter(i -> uid.equals(i.get("userId"))).count();
+        double avgScore = count == 0 ? 0 : InterviewController.interviewHistory.stream()
+            .filter(i -> uid.equals(i.get("userId")))
+            .mapToDouble(i -> ((Number) i.getOrDefault("overallScore", 0)).doubleValue())
+            .average().orElse(0.0);
+
+        long timeSpent = InterviewController.interviewHistory.stream()
+            .filter(i -> uid.equals(i.get("userId")))
+            .mapToLong(i -> ((Number) i.getOrDefault("duration", 0)).longValue())
+            .sum();
+
         return ResponseEntity.ok(Map.of(
             "data", Map.of(
-                "totalInterviews", 0,
-                "avgScore", "0%",
-                "timeSpent", "0m",
-                "successRate", "0%"
+                "totalInterviews", count,
+                "avgScore", String.format("%.0f%%", avgScore),
+                "timeSpent", (timeSpent / 60) + "m",
+                "successRate", String.format("%.0f%%", avgScore)
+            )
+        ));
+    }
+    
+    @GetMapping("/dashboard/recent")
+    public ResponseEntity<?> recentInterviews(@AuthenticationPrincipal String uid) {
+        var recent = InterviewController.interviewHistory.stream()
+            .filter(i -> uid.equals(i.get("userId")))
+            .sorted((a, b) -> ((String)b.get("createdAt")).compareTo((String)a.get("createdAt")))
+            .limit(5)
+            .toArray();
+
+        return ResponseEntity.ok(Map.of(
+            "data", Map.of(
+                "interviews", recent
             )
         ));
     }
 
-    /**
-     * GET /api/dashboard/recent
-     * Returns recent interview sessions for authenticated user.
-     */
-    @GetMapping("/dashboard/recent")
-    public ResponseEntity<?> recentInterviews(@AuthenticationPrincipal String uid) {
-        // TODO: Fetch real recent interviews from Supabase
+    @GetMapping("/history")
+    public ResponseEntity<?> getHistory(@AuthenticationPrincipal String uid) {
+        var history = InterviewController.interviewHistory.stream()
+            .filter(i -> uid.equals(i.get("userId")))
+            .sorted((a, b) -> ((String)b.get("createdAt")).compareTo((String)a.get("createdAt")))
+            .toArray();
+            
         return ResponseEntity.ok(Map.of(
             "data", Map.of(
-                "interviews", new Object[0]
+                "history", history
             )
         ));
+    }
+    
+    @GetMapping("/history/{interviewId}/result")
+    public ResponseEntity<?> getHistoryResult(@PathVariable String interviewId, @AuthenticationPrincipal String uid) {
+        var result = InterviewController.interviewHistory.stream()
+            .filter(i -> uid.equals(i.get("userId")) && interviewId.equals(i.get("interviewId")))
+            .findFirst();
+            
+        if (result.isPresent()) {
+            return ResponseEntity.ok(Map.of("data", Map.of("interview", result.get())));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

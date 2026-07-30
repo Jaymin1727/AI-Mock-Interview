@@ -23,7 +23,8 @@ const Interview = ({ topic = "Software Engineering", onFinish }) => {
   useEffect(() => {
     const initInterview = async () => {
       try {
-        const response = await startInterview(topic);
+        const difficulty = localStorage.getItem('interviewDifficulty') || 'Medium';
+        const response = await startInterview(topic, difficulty);
         setInterviewId(response.data.data.interviewId);
         
         // Parse the first question string returned by Gemini
@@ -152,13 +153,15 @@ const Interview = ({ topic = "Software Engineering", onFinish }) => {
         console.error("Failed to parse evaluation result", e);
       }
 
-      setEvaluations(prev => ({
-        ...prev,
+      const newEvaluations = {
+        ...evaluations,
         [currentQuestion]: resultData.evaluation
-      }));
+      };
+      
+      setEvaluations(newEvaluations);
 
       if (isLast) {
-        submitInterviewSession();
+        submitInterviewSession(newEvaluations);
       } else if (resultData.nextQuestion) {
         setQuestions(prev => [...prev, resultData.nextQuestion]);
         setCurrentQuestion(currentQuestion + 1);
@@ -176,18 +179,17 @@ const Interview = ({ topic = "Software Engineering", onFinish }) => {
     }
   };
 
-  const submitInterviewSession = async () => {
+  const submitInterviewSession = async (currentEvaluations = evaluations) => {
     setSubmitting(true);
     try {
       const duration = 600 - timeLeft;
-      const response = await finishInterview(interviewId, duration);
       
       // Calculate overall score (average of all question scores * 10)
-      const scores = Object.values(evaluations).map(e => e.score || 0);
+      const scores = Object.values(currentEvaluations).map(e => e.score || 0);
       const avgScore = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
       const overallScore = Math.round(avgScore * 10);
 
-      onFinish({ 
+      const resultPayload = { 
         result: {
           overallScore: overallScore,
           communicationScore: Math.min(100, overallScore + 5),
@@ -195,15 +197,20 @@ const Interview = ({ topic = "Software Engineering", onFinish }) => {
           confidenceScore: Math.min(100, overallScore + 8),
           problemSolvingScore: Math.min(100, overallScore),
           clarityScore: Math.min(100, overallScore + 2),
-          strengths: Object.values(evaluations).map(e => e.strengths).filter(Boolean).slice(0, 3), // Max 3
-          weaknesses: Object.values(evaluations).map(e => e.improvements).filter(Boolean).slice(0, 3),
+          strengths: Object.values(currentEvaluations).map(e => e.strengths).filter(Boolean).slice(0, 3), // Max 3
+          weaknesses: Object.values(currentEvaluations).map(e => e.improvements).filter(Boolean).slice(0, 3),
           suggestions: "Adaptive difficulty adjusted questions based on your performance. Focus on your areas of improvement to increase your average score in future interviews!"
         },
         questions: questions.map((q, i) => ({ 
           ...q, 
-          score: (evaluations[i]?.score || 0) * 10 
-        }))
-      }); 
+          score: (currentEvaluations[i]?.score || 0) * 10 
+        })),
+        duration: duration,
+        topic: topic
+      };
+
+      const response = await finishInterview(interviewId, resultPayload);
+      onFinish(resultPayload); 
     } catch (error) {
       console.error("Failed to finish interview:", error);
       setSubmitting(false);

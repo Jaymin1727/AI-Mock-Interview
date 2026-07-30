@@ -7,6 +7,7 @@ import Dashboard from './pages/Dashboard';
 import Interview from './pages/Interview';
 import Result from './pages/Result';
 import History from './pages/History';
+import Settings from './pages/Settings';
 import MainLayout from './layouts/MainLayout';
 import Loader from './components/ui/Loader';
 import './App.css';
@@ -102,11 +103,7 @@ function App() {
       {activePage === 'result' && <Result results={interviewData} onRestart={() => setActivePage('dashboard')} />}
       {activePage === 'history' && <History onViewResult={viewHistoryDetail} />}
       
-      {activePage === 'settings' && (
-        <div className="flex-center" style={{ minHeight: '400px' }}>
-          <h2>Settings coming soon</h2>
-        </div>
-      )}
+      {activePage === 'settings' && <Settings user={user} />}
     </MainLayout>
   );
 }

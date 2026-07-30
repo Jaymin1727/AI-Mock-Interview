@@ -12,11 +12,6 @@ import java.util.Map;
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    /**
-     * POST /api/auth/verify
-     * Verifies a Firebase ID token and returns user info.
-     * This endpoint is public — the token is verified in the response.
-     */
     @PostMapping("/verify")
     public ResponseEntity<?> verifyToken(
             @RequestHeader("Authorization") String authHeader

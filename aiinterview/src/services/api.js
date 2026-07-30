@@ -31,7 +31,7 @@ export const setAuthToken = (token) => {
 export const verifyAuth = () => api.post('/auth/verify');
 
 // --- Interview ---
-export const startInterview = (topic) => api.post('/interviews/start', { topic });
+export const startInterview = (topic, difficulty) => api.post('/interviews/start', { topic, difficulty });
 export const submitAnswer = (interviewId, topic, questionText, answer, currentDifficulty, isLastQuestion) =>
   api.post(`/interviews/${interviewId}/answer`, { 
     topic, 
@@ -40,8 +40,8 @@ export const submitAnswer = (interviewId, topic, questionText, answer, currentDi
     currentDifficulty, 
     isLastQuestion 
   });
-export const finishInterview = (interviewId, duration) =>
-  api.post(`/interviews/${interviewId}/finish`, { duration });
+export const finishInterview = (interviewId, resultData) =>
+  api.post(`/interviews/${interviewId}/finish`, resultData);
 
 // --- Dashboard ---
 export const getDashboardStats = () => api.get('/dashboard/stats');
