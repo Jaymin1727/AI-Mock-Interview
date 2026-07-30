@@ -1,0 +1,43 @@
+services:
+  backend:
+    build:
+      context: ./Ai_interview_bcn
+      dockerfile: Dockerfile
+    container_name: ai-interview-backend
+    ports:
+      - "8080:8080"
+    env_file:
+      - path: ./Ai_interview_bcn/.env
+        required: false
+    environment:
+      - SERVER_PORT=8080
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost
+    networks:
+      - ai-interview-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  frontend:
+    build:
+      context: ./aiinterview
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_BASE_URL: http://localhost:8080/api
+    container_name: ai-interview-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - ai-interview-net
+    restart: unless-stopped
+
+networks:
+  ai-interview-net:
+    driver: bridge
