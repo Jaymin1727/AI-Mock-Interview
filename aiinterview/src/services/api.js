@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { auth } from '../firebase';
 
-// Spring Boot backend URL from .env
-const API_URL = process.env.REACT_APP_API_BASE_URL || 'http://localhost:8080/api';
+// Spring Boot backend URL from .env (fallback to live Render backend)
+const API_URL = process.env.REACT_APP_API_BASE_URL || 'https://ai-mock-interview-2-d0tg.onrender.com/api';
 
 const api = axios.create({
   baseURL: API_URL,
