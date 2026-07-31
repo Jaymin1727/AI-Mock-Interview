@@ -1,0 +1,9 @@
+[build]
+  base = "aiinterview"
+  command = "CI=false npm run build"
+  publish = "aiinterview/build"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
